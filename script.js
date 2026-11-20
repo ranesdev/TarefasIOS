@@ -1,7 +1,7 @@
 /* =====================================================
    TAREFAS iOS — lógica (JavaScript puro + LocalStorage)
 
-   Esquema salvo no LocalStorage:
+   Esquema salvo no LocalStorage (chave "tarefas-ios.v2"):
    [{ "id": "1732130000000", "titulo": "...", "status": "foco",
       "categoria": "Trabalho", "prazo": "AAAA-MM-DD",
       "subtarefas": [{ "id": "sub-1", "titulo": "...", "concluida": false }] }]
@@ -16,6 +16,7 @@
   const STORAGE_KEY_V1 = 'gerenciador-tarefas.v1';   // versão anterior (migração automática)
   const COLUNAS = ['entrada', 'foco', 'concluido'];
   const MS_DIA = 86400000;
+  const MAX_TEXTO = 120;
 
   // Cor de cada categoria ("R,G,B") — usada na borda do círculo e na tag
   const CATEGORIAS = [
@@ -26,7 +27,7 @@
     { nome: 'Finanças', cor: '255,214,10' },   // amarelo
   ];
 
-  const semAcento = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const semAcento = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const corDe = (nome) => (CATEGORIAS.find((c) => c.nome === nome) || CATEGORIAS[1]).cor;
   function categoriaValida(v) {
     const alvo = semAcento(v);
@@ -48,14 +49,27 @@
   const ocupados = new Set();     // cards aguardando a animação de "concluir"
   let editandoId = null;
   let refocarSub = null;
+  let ultimoSalvo = null;         // último JSON gravado/lido (detecta mudanças vindas de outra aba)
+  let diaRenderizado = '';        // dia da última renderização (virada de dia)
+
+  /* ---------- Aviso (toast) ---------- */
+  let toastTimer = null;
+  function avisar(msg) {
+    const t = $('#toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 5000);
+  }
 
   /* =====================================================
      DADOS
      ===================================================== */
   function novoId() {
-    let id = Date.now();
-    while (tarefas && tarefas.some((t) => t.id === String(id))) id++;
-    return String(id);
+    let n = Date.now();
+    while (tarefas.some((t) => t.id === String(n))) n++;
+    return String(n);
   }
 
   /** Reatribui ids sequenciais "sub-1", "sub-2"… */
@@ -78,74 +92,112 @@
     return t;
   }
 
-  /** Aceita o esquema novo e o antigo (texto/feito) e devolve o esquema novo. */
+  /** Aceita só "AAAA-MM-DD" de uma data que realmente existe. */
+  function dataValida(v) {
+    if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return '';
+    const [y, m, d] = v.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d ? v : '';
+  }
+
+  /** Aceita o esquema novo e o antigo (texto/feito) e devolve o esquema novo, já saneado. */
   function normalizar(dados) {
     if (!Array.isArray(dados)) return [];
     const usados = new Set();
-    return dados
-      .filter((t) => t && typeof t.titulo === 'string')
-      .map((t, i) => {
-        let id = String(t.id || Date.now() + i);
-        while (usados.has(id)) id = String(Number(id) + 1);
-        usados.add(id);
-        const nova = {
-          id,
-          titulo: t.titulo,
-          status: COLUNAS.includes(t.status) ? t.status : 'entrada',
-          categoria: categoriaValida(t.categoria),
-          prazo: t.prazo || '',
-          subtarefas: (Array.isArray(t.subtarefas) ? t.subtarefas : []).map((s) => ({
+    const idLivre = () => {
+      let n = Date.now();
+      while (usados.has(String(n))) n++;
+      return String(n);
+    };
+    const saida = [];
+
+    for (const t of dados) {
+      if (!t || typeof t.titulo !== 'string' || !t.titulo.trim()) continue;
+
+      let id = String(t.id === undefined || t.id === null ? '' : t.id);
+      if (!/^\d{1,16}$/.test(id) || usados.has(id)) id = idLivre();   // id numérico e único
+      usados.add(id);
+
+      const status = COLUNAS.includes(t.status) ? t.status : 'entrada';
+      const nova = {
+        id,
+        titulo: t.titulo.trim().slice(0, MAX_TEXTO),
+        status,
+        categoria: categoriaValida(t.categoria),
+        prazo: dataValida(t.prazo),
+        subtarefas: (Array.isArray(t.subtarefas) ? t.subtarefas : [])
+          .filter((s) => s && String(s.titulo !== undefined ? s.titulo : (s.texto || '')).trim())
+          .map((s) => ({
             id: '',
-            titulo: String(s.titulo !== undefined ? s.titulo : (s.texto || '')),
+            titulo: String(s.titulo !== undefined ? s.titulo : s.texto).trim().slice(0, MAX_TEXTO),
             concluida: !!(s.concluida !== undefined ? s.concluida : s.feito),
           })),
-          statusAnterior: COLUNAS.includes(t.statusAnterior) && t.statusAnterior !== 'concluido' ? t.statusAnterior : 'entrada',
-          concluidaEm: t.concluidaEm || null,
-        };
-        renumerar(nova);
-        return nova;
-      });
+        statusAnterior: COLUNAS.includes(t.statusAnterior) && t.statusAnterior !== 'concluido' ? t.statusAnterior : 'entrada',
+        concluidaEm: Number.isFinite(t.concluidaEm) ? t.concluidaEm : null,
+      };
+      renumerar(nova);
+      saida.push(nova);
+    }
+    return saida;
   }
 
+  /** Lê o LocalStorage. Sem dados => lista vazia (o app NÃO cria tarefas de exemplo). */
   function carregar() {
+    let bruto = null;
     try {
-      let bruto = localStorage.getItem(STORAGE_KEY);
-      if (bruto === null) bruto = localStorage.getItem(STORAGE_KEY_V1);   // migra dados antigos
-      if (bruto === null) return exemplos();
+      bruto = localStorage.getItem(STORAGE_KEY);
+      if (bruto === null) bruto = localStorage.getItem(STORAGE_KEY_V1);   // migra dados da versão anterior
+    } catch (e) {
+      avisar('Armazenamento indisponível: as tarefas não serão salvas.');
+      return [];
+    }
+    if (bruto === null) return [];
+
+    try {
       return normalizar(JSON.parse(bruto));
     } catch (e) {
+      // dados ilegíveis: guarda uma cópia antes de qualquer gravação nova
+      try { localStorage.setItem(STORAGE_KEY + '.corrompido', bruto); } catch (_) { /* ignora */ }
+      avisar('Dados ilegíveis. Uma cópia foi guardada e o app iniciou vazio.');
       return [];
     }
   }
 
   function salvar() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tarefas));
-    } catch (e) { /* modo privado / cota cheia: segue em memória */ }
+      const json = JSON.stringify(tarefas);
+      localStorage.setItem(STORAGE_KEY, json);
+      ultimoSalvo = json;
+      return true;
+    } catch (e) {
+      avisar('Não foi possível salvar. Verifique o armazenamento do Safari.');
+      return false;
+    }
   }
 
-  function exemplos() {
-    const em = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
-    const lista = [];
-    const add = (...args) => { const t = novaTarefa(...args); lista.push(t); tarefas = lista; };
-    tarefas = lista;
-    add('Enviar relatório semanal', 'Trabalho', 'foco', em(0), ['Revisar números', 'Anexar gráficos', 'Enviar ao gestor']);
-    add('Comprar presente de aniversário', 'Pessoal', 'entrada', em(1), []);
-    add('Ler capítulo 4', 'Estudos', 'entrada', em(5), ['Fazer resumo']);
-    return lista;
+  /** Se outra aba/janela alterou os dados, recarrega (evita sobrescrever o trabalho dela). */
+  function sincronizar() {
+    let bruto;
+    try { bruto = localStorage.getItem(STORAGE_KEY); } catch (e) { return; }
+    if (bruto === null || bruto === ultimoSalvo) return;
+    try {
+      tarefas = normalizar(JSON.parse(bruto));
+      ultimoSalvo = bruto;
+    } catch (e) { return; }
+    if (editandoId && !achar(editandoId)) fecharFolha();   // a tarefa editada sumiu
+    renderizar();
   }
 
   /* =====================================================
      DATAS
      ===================================================== */
-  const pad = (n) => String(n).padStart(2, '0');
-  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
   function inicioDoDia() {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   }
+
+  const chaveDia = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
 
   /** Dias entre hoje e o prazo (negativo = atrasado), usando a data do aparelho. */
   function diasAte(prazo) {
@@ -167,7 +219,7 @@
   }
 
   /* =====================================================
-     DOM (sem innerHTML com dados do usuário => sem XSS)
+     DOM (sem innerHTML com dados do usuário; sem estilos inline => compatível com CSP)
      ===================================================== */
   function el(tag, attrs, ...filhos) {
     const n = document.createElement(tag);
@@ -175,12 +227,14 @@
       if (v === null || v === undefined || v === false) continue;
       if (k === 'class') n.className = v;
       else if (k === 'text') n.textContent = v;
+      else if (k === 'cor') n.style.setProperty('--c', v);   // cor da categoria (via CSSOM)
       else n.setAttribute(k, v === true ? '' : v);
     }
     for (const f of filhos) if (f) n.append(f);
     return n;
   }
 
+  // Apenas para os ícones fixos abaixo (nunca recebe dados do usuário)
   function svg(html) {
     const t = document.createElement('template');
     t.innerHTML = html.trim();
@@ -243,7 +297,7 @@
     }
 
     const addForm = el('form', { class: 'sub-add', autocomplete: 'off' },
-      el('input', { type: 'text', placeholder: 'Nova subtarefa…', maxlength: '120', enterkeyhint: 'done', 'aria-label': 'Nova subtarefa' })
+      el('input', { type: 'text', placeholder: 'Nova subtarefa…', maxlength: String(MAX_TEXTO), enterkeyhint: 'done', 'aria-label': 'Nova subtarefa' })
     );
 
     const acoes = el('div', { class: 'actions' });
@@ -254,14 +308,15 @@
       el('button', { class: 'act danger', type: 'button', 'data-action': 'delete', text: 'Excluir' })
     );
 
-    const extra = el('div', { class: 'card-extra', style: aberto ? 'max-height:none' : null },
+    const extra = el('div', { class: 'card-extra' },
       el('div', { class: 'extra-pad' }, lista, addForm, acoes)
     );
+    if (aberto) extra.style.maxHeight = 'none';
 
     return el('article', {
       class: 'card' + (t.status === 'concluido' ? ' done' : '') + (aberto ? ' open' : ''),
       'data-id': t.id,
-      style: `--c: ${corDe(t.categoria)}`,
+      cor: corDe(t.categoria),
     }, main, extra);
   }
 
@@ -276,6 +331,7 @@
   }
 
   function renderizar() {
+    diaRenderizado = chaveDia();
     for (const status of COLUNAS) {
       const itens = ordenar(tarefas.filter((t) => t.status === status), status);
       const frag = document.createDocumentFragment();
@@ -288,7 +344,8 @@
     atualizarCabecalho();
 
     if (refocarSub) {
-      const input = document.querySelector(`.card[data-id="${refocarSub}"] .sub-add input`);
+      const card = Array.from(document.querySelectorAll('.card')).find((c) => c.dataset.id === refocarSub);
+      const input = card && card.querySelector('.sub-add input');
       if (input) input.focus();
       refocarSub = null;
     }
@@ -371,18 +428,19 @@
   function tratarAcao(acao, card, btn) {
     const t = achar(card.dataset.id);
     if (!t) return;
+    if (ocupados.has(t.id)) return;          // card em animação de "concluir": ignora toques extras
 
     switch (acao) {
       case 'check': {
-        if (ocupados.has(t.id)) return;
         ocupados.add(t.id);
         // 1) feedback visual imediato: círculo preenche, texto esmaece e ganha risca
         card.classList.toggle('done', t.status !== 'concluido');
-        // 2) depois da animação, muda de coluna
+        // 2) depois da animação, muda de coluna (busca a tarefa de novo: pode ter mudado)
+        const id = t.id;
         setTimeout(() => {
-          alternarConcluida(t);
-          ocupados.delete(t.id);
-          salvar();
+          ocupados.delete(id);
+          const atual = achar(id);
+          if (atual) { alternarConcluida(atual); salvar(); }
           renderizar();
         }, 400);
         return;
@@ -401,7 +459,7 @@
         renumerar(t);
         break;
       case 'move':
-        t.status = btn.dataset.to;
+        t.status = btn.dataset.to === 'foco' ? 'foco' : 'entrada';
         t.statusAnterior = t.status;
         break;
       case 'edit':
@@ -412,6 +470,8 @@
         tarefas = tarefas.filter((x) => x.id !== t.id);
         expandidos.delete(t.id);
         break;
+      default:
+        return;
     }
     salvar();
     renderizar();
@@ -439,9 +499,9 @@
     const formSub = e.target.closest('.sub-add');
     if (!formSub) return;
     const card = formSub.closest('.card');
-    const texto = formSub.querySelector('input').value.trim();
+    const texto = formSub.querySelector('input').value.trim().slice(0, MAX_TEXTO);
     const t = achar(card.dataset.id);
-    if (!t || !texto) return;
+    if (!t || !texto || ocupados.has(t.id)) return;
     t.subtarefas.push({ id: `sub-${t.subtarefas.length + 1}`, titulo: texto, concluida: false });
     refocarSub = t.id;
     salvar();
@@ -522,7 +582,8 @@
   function fecharFolha() {
     overlay.classList.remove('open');
     overlay.setAttribute('aria-hidden', 'true');
-    if (document.activeElement) document.activeElement.blur();
+    editandoId = null;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
 
   $('#fab').addEventListener('click', () => abrirFolha(null));
@@ -532,12 +593,13 @@
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const titulo = $('#f-titulo').value.trim();
+    const titulo = $('#f-titulo').value.trim().slice(0, MAX_TEXTO);
     if (!titulo) { $('#f-titulo').focus(); return; }
 
-    const linhas = $('#f-subs').value.split('\n').map((l) => l.trim()).filter(Boolean);
-    const categoria = selCategoria.value;
-    const prazo = $('#f-prazo').value;
+    const linhas = $('#f-subs').value.split('\n').map((l) => l.trim().slice(0, MAX_TEXTO)).filter(Boolean);
+    const categoria = CATEGORIAS.some((c) => c.nome === selCategoria.value) ? selCategoria.value : 'Pessoal';
+    const prazo = dataValida($('#f-prazo').value);
+    const statusEscolhido = $('#f-status').value === 'foco' ? 'foco' : 'entrada';
 
     if (editandoId) {
       const t = achar(editandoId);
@@ -545,7 +607,7 @@
         t.titulo = titulo;
         t.categoria = categoria;
         t.prazo = prazo;
-        if (t.status !== 'concluido') { t.status = $('#f-status').value; t.statusAnterior = t.status; }
+        if (t.status !== 'concluido') { t.status = statusEscolhido; t.statusAnterior = t.status; }
         // preserva o "concluida" das subtarefas que mantiveram o mesmo texto
         const antigas = [...t.subtarefas];
         t.subtarefas = linhas.map((texto) => {
@@ -555,9 +617,8 @@
         renumerar(t);
       }
     } else {
-      const status = $('#f-status').value;
-      tarefas.push(novaTarefa(titulo, categoria, status, prazo, linhas));
-      irParaAba(status === 'foco' ? 1 : 0);
+      tarefas.push(novaTarefa(titulo, categoria, statusEscolhido, prazo, linhas));
+      irParaAba(statusEscolhido === 'foco' ? 1 : 0);
     }
 
     salvar();
@@ -568,14 +629,33 @@
   /* =====================================================
      INICIALIZAÇÃO
      ===================================================== */
-  // Atualiza data e alertas ao voltar para o app e a cada minuto (virada de dia)
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) renderizar(); });
-  setInterval(renderizar, 60000);
+  // Virada de dia: só redesenha se o dia mudou (evita apagar o que o usuário está digitando)
+  function verificarDia() {
+    if (chaveDia() !== diaRenderizado) renderizar();
+  }
 
-  tarefas = carregar();   // lê (e migra, se preciso) os dados salvos
-  salvar();               // grava no novo formato
+  setInterval(verificarDia, 60000);
+
+  // Ao voltar para o app (iOS congela abas em segundo plano): reconcilia dados e dia
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { sincronizar(); verificarDia(); }
+  });
+  window.addEventListener('pageshow', () => { sincronizar(); verificarDia(); });
+
+  // Outra aba/janela do mesmo site alterou os dados
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY || e.key === null) sincronizar();
+  });
+
+  tarefas = carregar();   // lê (e migra, se preciso) os dados salvos; vazio no primeiro uso
+  salvar();               // grava no formato atual
   renderizar();
   irParaAba(0);
+
+  // Pede ao Safari para não apagar os dados por inatividade (quando suportado)
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});

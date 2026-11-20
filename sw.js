@@ -1,10 +1,17 @@
-/* Service Worker simples: abre offline e atualiza em segundo plano.
+/* Service Worker: rede primeiro (sempre pega a versão nova quando online),
+   com cache como reserva para funcionar offline.
    Ao alterar os arquivos do app, incremente a versão do cache. */
-const CACHE = 'tarefas-v2';
+const CACHE = 'tarefas-v3';
 const ARQUIVOS = ['./', './index.html', './style.css', './script.js', './manifest.json', './icon.svg'];
+const TEMPO_LIMITE_MS = 4000;   // se a rede demorar mais que isso, usa o cache
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      // "reload" ignora o cache HTTP; um arquivo ausente não derruba a instalação
+      .then((c) => Promise.all(ARQUIVOS.map((a) => c.add(new Request(a, { cache: 'reload' })).catch(() => {}))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {
@@ -15,21 +22,30 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// stale-while-revalidate
+async function redeOuCache(req) {
+  const rede = fetch(req, { cache: 'no-cache' }).then((resp) => {
+    if (resp && resp.ok) {
+      const copia = resp.clone();
+      caches.open(CACHE).then((c) => c.put(req, copia)).catch(() => {});
+    }
+    return resp;
+  });
+  rede.catch(() => {});   // evita aviso de rejeição não tratada
+
+  try {
+    return await Promise.race([
+      rede,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), TEMPO_LIMITE_MS)),
+    ]);
+  } catch (err) {
+    const guardado = await caches.match(req, { ignoreSearch: true });
+    return guardado || rede;
+  }
+}
+
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then((cacheado) => {
-      const rede = fetch(e.request)
-        .then((resp) => {
-          if (resp && resp.ok) {
-            const copia = resp.clone();
-            caches.open(CACHE).then((c) => c.put(e.request, copia));
-          }
-          return resp;
-        })
-        .catch(() => cacheado);
-      return cacheado || rede;
-    })
-  );
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  if (new URL(req.url).origin !== self.location.origin) return;   // só arquivos do próprio site
+  e.respondWith(redeOuCache(req));
 });
