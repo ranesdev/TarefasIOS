@@ -1,0 +1,15 @@
+{
+  "name": "Minhas Tarefas",
+  "short_name": "Tarefas",
+  "description": "Gerenciador de tarefas pessoal estilo Kanban compacto.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
