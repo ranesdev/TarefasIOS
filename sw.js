@@ -1,6 +1,6 @@
 /* Service Worker simples: abre offline e atualiza em segundo plano.
    Ao alterar os arquivos do app, incremente a versão do cache. */
-const CACHE = 'tarefas-v1';
+const CACHE = 'tarefas-v2';
 const ARQUIVOS = ['./', './index.html', './style.css', './script.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {

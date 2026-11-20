@@ -1,41 +1,40 @@
 /* =====================================================
-   GERENCIADOR DE TAREFAS — estilo iOS (Safari mobile)
+   TAREFAS iOS — estilo premium (Dark Mode nativo)
    ===================================================== */
 
-/* ---------- Variáveis (Modo Claro padrão) ---------- */
+/* ---------- Variáveis: Dark Mode é o padrão ---------- */
 :root {
-  --bg: #f2f2f7;
-  --card: #ffffff;
-  --text: #000000;
+  --bg: #1c1c1e;
+  --card: #2c2c2e;
+  --text: #ffffff;
   --text-2: #8e8e93;
-  --sep: rgba(60, 60, 67, 0.14);
-  --pill-bg: rgba(118, 118, 128, 0.12);
-  --pill-active: #ffffff;
-  --field-bg: rgba(118, 118, 128, 0.1);
+  --sep: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --seg-bg: #2c2c2e;
+  --seg-pill: #636366;               /* pílula ativa flutuando sobre o fundo */
+  --field-bg: rgba(118, 118, 128, 0.24);
+  --sheet-bg: #1c1c1e;
   --blue: #007aff;
   --green: #34c759;
   --red: #ff3b30;
   --orange: #ff9500;
   --gray: #8e8e93;
-  --check-border: #c7c7cc;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.05);
-  --sheet-bg: #f2f2f7;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.22);
 }
 
-/* ---------- Modo Escuro automático ---------- */
-@media (prefers-color-scheme: dark) {
+/* ---------- Modo Claro (só se o aparelho estiver em claro) ---------- */
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #1c1c1e;
-    --card: #2c2c2e;
-    --text: #ffffff;
-    --text-2: #98989f;
-    --sep: rgba(84, 84, 88, 0.55);
-    --pill-bg: rgba(118, 118, 128, 0.24);
-    --pill-active: #636366;
-    --field-bg: rgba(118, 118, 128, 0.24);
-    --check-border: #636366;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.25);
-    --sheet-bg: #1c1c1e;
+    --bg: #f2f2f7;
+    --card: #ffffff;
+    --text: #000000;
+    --sep: rgba(60, 60, 67, 0.14);
+    --card-border: rgba(0, 0, 0, 0.06);
+    --seg-bg: rgba(118, 118, 128, 0.12);
+    --seg-pill: #ffffff;
+    --field-bg: rgba(118, 118, 128, 0.12);
+    --sheet-bg: #f2f2f7;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.05);
   }
 }
 
@@ -49,25 +48,21 @@
 
 html {
   height: 100%;
-  overscroll-behavior-y: contain;       /* sem efeito elástico na página inteira */
+  overscroll-behavior-y: contain;       /* blinda o scroll elástico da página */
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   height: 100%;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
   overscroll-behavior-y: contain;
-  touch-action: pan-y;                  /* remove atraso de toque; só rolagem vertical */
-  padding-top: env(safe-area-inset-top);
+  touch-action: pan-y;                  /* sem delay de clique; só rolagem vertical */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -85,7 +80,7 @@ button {
   appearance: none;
 }
 
-/* font-size 16px nos campos evita o zoom automático do Safari ao focar */
+/* 16px nos campos evita o zoom automático do Safari ao focar */
 input, select, textarea {
   font: inherit;
   font-size: 16px;
@@ -96,6 +91,25 @@ input, select, textarea {
   appearance: none;
 }
 
+/* ---------- Container centralizado (máx. 430px) ---------- */
+.app {
+  position: relative;                   /* ancora o FAB e o modal dentro dos 430px */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 430px;
+  height: 100%;
+  height: 100dvh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top);
+}
+
+@media (min-width: 431px) {
+  .app { box-shadow: 0 0 0 0.5px var(--sep); }   /* contorno sutil no desktop */
+}
+
 /* ---------- Cabeçalho ---------- */
 .app-header {
   flex: none;
@@ -103,53 +117,42 @@ input, select, textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 20px 12px;
+  padding: 16px 20px 14px;
 }
 
 .eyebrow {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--text-2);                 /* #8e8e93 */
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .app-header h1 {
-  margin: 2px 0 0;
-  font-size: 30px;
+  margin: 3px 0 0;
+  font-size: 34px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
 
 .resumo {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
   font-size: 14px;
   color: var(--text-2);
 }
 
-/* Anel de progresso (estilo Apple Watch) */
+/* Anel de progresso */
 .ring {
   position: relative;
   flex: none;
   width: 56px;
   height: 56px;
 }
-
-.ring svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.ring circle {
-  fill: none;
-  stroke-width: 6;
-}
-
-.ring-track { stroke: var(--pill-bg); }
-
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 6; }
+.ring-track { stroke: var(--seg-bg); }
 .ring-bar {
   stroke: var(--green);
   stroke-linecap: round;
@@ -157,7 +160,6 @@ input, select, textarea {
   stroke-dashoffset: 138.23;
   transition: stroke-dashoffset 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
-
 .ring-label {
   position: absolute;
   inset: 0;
@@ -167,34 +169,34 @@ input, select, textarea {
   font-weight: 700;
 }
 
-/* ---------- Abas em pílula ---------- */
-.tabs {
+/* ---------- Segmented Control ---------- */
+.segmented {
   flex: none;
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  margin: 0 16px 12px;
-  padding: 2px;
-  background: var(--pill-bg);
+  margin: 0 16px 14px;
+  padding: 2px;                         /* margem interna sutil */
+  background: var(--seg-bg);
   border-radius: 12px;
 }
 
-.tab-indicator {
+.seg-pill {
   position: absolute;
   top: 2px;
   bottom: 2px;
   left: 2px;
   width: calc((100% - 4px) / 3);
-  background: var(--pill-active);
+  background: var(--seg-pill);
   border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
   transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-.tab {
+.seg {
   position: relative;
   z-index: 1;
-  min-height: 44px;                     /* alvo de toque mínimo */
+  min-height: 44px;                     /* hit target */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -202,16 +204,15 @@ input, select, textarea {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-2);
-  transition: color 0.2s;
+  transition: color 0.25s;
 }
-
-.tab.active { color: var(--text); }
+.seg.active { color: var(--text); }
 
 .count {
   min-width: 20px;
   padding: 1px 6px;
   border-radius: 999px;
-  background: var(--pill-bg);
+  background: rgba(142, 142, 147, 0.22);
   font-size: 12px;
   font-weight: 700;
   text-align: center;
@@ -243,7 +244,7 @@ input, select, textarea {
 }
 
 .empty {
-  margin: 48px 0 0;
+  margin: 56px 0 0;
   text-align: center;
   color: var(--text-2);
   font-size: 15px;
@@ -253,22 +254,25 @@ input, select, textarea {
 .toolbar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
-.clear-btn {
+/* "Limpar tudo": link azul nativo */
+.clear-link {
   min-height: 44px;
   padding: 0 4px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
-  color: var(--red);
+  color: var(--blue);                   /* #007aff */
 }
+.clear-link:active { opacity: 0.5; }
 
-/* ---------- Cards (widgets) ---------- */
+/* ---------- Cards (widgets) ----------
+   Cada card recebe --c (cor da categoria, "R,G,B") via JavaScript */
 .card {
   background: var(--card);
   border-radius: 18px;
-  border: 0.5px solid var(--sep);
+  border: 0.5px solid var(--card-border);
   box-shadow: var(--shadow);
   margin-bottom: 10px;
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -281,14 +285,15 @@ input, select, textarea {
 
 .card-main {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
-  min-height: 60px;
-  padding: 6px 12px 6px 4px;
+  min-height: 64px;
+  padding: 8px 14px 8px 4px;
   cursor: pointer;
   touch-action: manipulation;
 }
 
+/* Círculo vazado nativo: borda herda a cor da categoria */
 .check {
   flex: none;
   width: 44px;
@@ -301,38 +306,46 @@ input, select, textarea {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--check-border);
+  border: 2px solid rgb(var(--c, 142, 142, 147));
   display: grid;
   place-items: center;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
 }
+.check:active .check-circle { transform: scale(0.88); }
 
-.check-circle svg { opacity: 0; transition: opacity 0.2s; }
+.check-circle svg { opacity: 0; transform: scale(0.6); transition: opacity 0.2s, transform 0.25s; }
 
-.card.done .check-circle,
-.sub.feito .check-circle {
-  background: var(--green);
-  border-color: var(--green);
+.card.done > .card-main .check-circle,
+.sub.concluida .check-circle {
+  background: rgb(var(--c, 142, 142, 147));
 }
-
-.card.done .check-circle svg,
-.sub.feito .check-circle svg { opacity: 1; }
+.card.done > .card-main .check-circle svg,
+.sub.concluida .check-circle svg { opacity: 1; transform: scale(1); }
 
 .card-body {
   flex: 1;
   min-width: 0;
-  padding: 8px 0;
+  padding: 11px 0 4px;
 }
 
 .card-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
   overflow-wrap: anywhere;
+  transition: opacity 0.35s ease;
 }
 
-.card.done .card-title {
-  text-decoration: line-through;
+/* Risca central animada (cresce da esquerda p/ a direita) + fade do texto */
+.card-title .t {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0% 1.5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 0.4s ease, color 0.35s ease;
+}
+.card.done .card-title { opacity: 0.55; }
+.card.done .card-title .t {
+  background-size: 100% 1.5px;
   color: var(--text-2);
 }
 
@@ -341,10 +354,10 @@ input, select, textarea {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin-top: 7px;
+  margin-top: 8px;
 }
 
-.tag, .badge, .subcount {
+.tag, .badge {
   font-size: 12px;
   font-weight: 600;
   padding: 3px 9px;
@@ -352,50 +365,42 @@ input, select, textarea {
   line-height: 1.2;
 }
 
-/* Tags de categoria */
 .tag {
-  background: rgba(var(--c), 0.14);
-  color: rgb(var(--c));
+  background: rgba(var(--c, 142, 142, 147), 0.18);
+  color: rgb(var(--c, 142, 142, 147));
 }
-.tag[data-cat="trabalho"] { --c: 0, 122, 255; }
-.tag[data-cat="pessoal"]  { --c: 52, 199, 89; }
-.tag[data-cat="estudos"]  { --c: 175, 82, 222; }
-.tag[data-cat="saude"]    { --c: 255, 45, 85; }
-.tag[data-cat="financas"] { --c: 204, 140, 0; }
 
-/* Alertas de prazo */
-.badge.red    { background: rgba(255, 59, 48, 0.14);  color: var(--red); }
-.badge.orange { background: rgba(255, 149, 0, 0.16);  color: var(--orange); }
-.badge.gray   { background: rgba(142, 142, 147, 0.16); color: var(--gray); }
+/* Selos de prazo (classes injetadas pelo JS) */
+.badge.red    { background: rgba(255, 59, 48, 0.18);   color: var(--red); }
+.badge.orange { background: rgba(255, 149, 0, 0.18);   color: var(--orange); }
+.badge.gray   { background: rgba(142, 142, 147, 0.2);  color: var(--gray); }
 
-.subcount {
-  background: var(--pill-bg);
+/* Indicador discreto: "▼ 1/3 subtarefas" */
+.sub-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 13px;
   color: var(--text-2);
 }
-
-.chev {
-  flex: none;
-  color: var(--text-2);
-  transition: transform 0.25s ease;
+.sub-indicator .arrow {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.3s ease;
 }
-.card.open .chev { transform: rotate(90deg); }
+.card.open .sub-indicator .arrow { transform: rotate(180deg); }
 
-/* ---------- Accordion (subtarefas) ---------- */
+/* ---------- Accordion (transição de max-height) ---------- */
 .card-extra {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease;
-}
-.card.open .card-extra { grid-template-rows: 1fr; }
-
-.card-extra-inner {
+  max-height: 0;
   overflow: hidden;
-  min-height: 0;
+  transition: max-height 0.35s ease;
 }
 
 .extra-pad {
   margin: 0 14px;
-  padding: 4px 0 10px;
+  padding: 4px 0 12px;
   border-top: 0.5px solid var(--sep);
 }
 
@@ -403,9 +408,8 @@ input, select, textarea {
   display: flex;
   align-items: center;
   min-height: 44px;
-  transition: opacity 0.2s;
+  transition: opacity 0.3s ease;
 }
-
 .sub .check-circle { width: 20px; height: 20px; }
 
 .sub-text {
@@ -413,10 +417,13 @@ input, select, textarea {
   min-width: 0;
   font-size: 15px;
   overflow-wrap: anywhere;
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0% 1.5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 0.35s ease;
 }
-
-.sub.feito { opacity: 0.5; }
-.sub.feito .sub-text { text-decoration: line-through; }
+.sub.concluida { opacity: 0.5; }
+.sub.concluida .sub-text { background-size: 100% 1.5px; }
 
 .sub-del {
   flex: none;
@@ -429,10 +436,8 @@ input, select, textarea {
 
 .sub-add {
   display: flex;
-  align-items: center;
-  margin: 2px 0 6px;
+  margin: 2px 0 8px;
 }
-
 .sub-add input {
   flex: 1;
   min-width: 0;
@@ -446,9 +451,7 @@ input, select, textarea {
 .actions {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
 }
-
 .act {
   flex: 1;
   min-height: 44px;
@@ -460,10 +463,11 @@ input, select, textarea {
   color: var(--blue);
 }
 .act.danger { color: var(--red); }
+.act:active { opacity: 0.6; }
 
-/* ---------- Botão flutuante ---------- */
+/* ---------- Botão flutuante (dentro do container de 430px) ---------- */
 .fab {
-  position: fixed;
+  position: absolute;
   right: 20px;
   bottom: calc(20px + env(safe-area-inset-bottom));
   width: 56px;
@@ -480,29 +484,27 @@ input, select, textarea {
 
 /* ---------- Folha modal ---------- */
 .overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 10;
   display: flex;
   align-items: flex-end;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.45);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.25s ease, visibility 0.25s;
   overscroll-behavior: contain;
 }
-.overlay.open {
-  opacity: 1;
-  visibility: visible;
-}
+.overlay.open { opacity: 1; visibility: visible; }
 
 .sheet {
   width: 100%;
-  max-height: 92dvh;
+  max-height: 92%;
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--sheet-bg);
   border-radius: 22px 22px 0 0;
+  border-top: 0.5px solid var(--sep);
   padding: 6px 16px calc(20px + env(safe-area-inset-bottom));
   transform: translateY(100%);
   transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -515,14 +517,10 @@ input, select, textarea {
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.sheet-bar h2 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-}
+.sheet-bar h2 { margin: 0; font-size: 17px; font-weight: 700; }
 
 .link {
-  min-width: 70px;
+  min-width: 76px;
   min-height: 44px;
   font-size: 17px;
   color: var(--blue);
@@ -530,11 +528,7 @@ input, select, textarea {
 }
 .link.strong { font-weight: 700; text-align: right; }
 
-.field {
-  display: block;
-  margin-bottom: 14px;
-  min-width: 0;
-}
+.field { display: block; margin-bottom: 14px; min-width: 0; }
 .field > span {
   display: block;
   margin: 0 4px 6px;
@@ -553,12 +547,7 @@ input, select, textarea {
   background: var(--card);
 }
 .field textarea { resize: none; line-height: 1.4; }
-
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; }
