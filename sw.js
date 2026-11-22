@@ -1,8 +1,9 @@
 /* Service Worker: rede primeiro (sempre pega a versão nova quando online),
    com cache como reserva para funcionar offline.
    Ao alterar os arquivos do app, incremente a versão do cache. */
-const CACHE = 'tarefas-v3';
-const ARQUIVOS = ['./', './index.html', './style.css', './script.js', './manifest.json', './icon.svg'];
+const CACHE = 'tarefas-v5';
+const ARQUIVOS = ['./', './index.html', './style.css', './script.js', './manifest.json', './icon.svg',
+  './treinos.html', './treinos.css', './treinos.js', './manifest-treinos.json'];
 const TEMPO_LIMITE_MS = 4000;   // se a rede demorar mais que isso, usa o cache
 
 self.addEventListener('install', (e) => {

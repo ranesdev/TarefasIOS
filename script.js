@@ -50,18 +50,33 @@
   let editandoId = null;
   let refocarSub = null;
   let ultimoSalvo = null;         // último JSON gravado/lido (detecta mudanças vindas de outra aba)
-  let diaRenderizado = '';        // dia da última renderização (virada de dia)
+  let diaRenderizado = '';
+  let cardCache = new Map();       // id -> { sig, no }: cards já montados        // dia da última renderização (virada de dia)
 
   /* ---------- Aviso (toast) ---------- */
   let toastTimer = null;
-  function avisar(msg) {
+  function avisar(msg, rotulo, acao, ms) {
     const t = $('#toast');
     if (!t) return;
-    t.textContent = msg;
+    t.classList.toggle('acao', !!acao);
+    if (acao) {                       // aviso com botão (ex.: "Desfazer")
+      const texto = document.createElement('span');
+      texto.textContent = msg;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'toast-btn';
+      b.textContent = rotulo;
+      b.addEventListener('click', () => { t.classList.remove('show'); clearTimeout(toastTimer); acao(); });
+      t.replaceChildren(texto, b);
+    } else {
+      t.textContent = msg;
+    }
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 5000);
+    toastTimer = setTimeout(() => t.classList.remove('show'), ms || 5000);
   }
+
+  const plural = (n, a, b) => `${n} ${n === 1 ? a : b}`;
 
   /* =====================================================
      DADOS
@@ -235,10 +250,14 @@
   }
 
   // Apenas para os ícones fixos abaixo (nunca recebe dados do usuário)
+  const svgCache = {};
   function svg(html) {
-    const t = document.createElement('template');
-    t.innerHTML = html.trim();
-    return t.content.firstChild;
+    if (!svgCache[html]) {
+      const t = document.createElement('template');
+      t.innerHTML = html.trim();
+      svgCache[html] = t.content.firstChild;
+    }
+    return svgCache[html].cloneNode(true);
   }
 
   const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.4 2.4 4.6-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -332,14 +351,25 @@
 
   function renderizar() {
     diaRenderizado = chaveDia();
+    for (const id of Array.from(expandidos)) if (!achar(id)) expandidos.delete(id);   // limpa ids de tarefas removidas
+    const novoCache = new Map();
     for (const status of COLUNAS) {
       const itens = ordenar(tarefas.filter((t) => t.status === status), status);
       const frag = document.createDocumentFragment();
-      itens.forEach((t) => frag.append(montarCard(t)));
+      itens.forEach((t) => {
+        // reaproveita o card se nada nele mudou (evita recriar centenas de elementos a cada ação)
+        const p = infoPrazo(t);
+        const sig = JSON.stringify(t) + '|' + (expandidos.has(t.id) ? 1 : 0) + '|' + (p ? p.txt + p.cls : '');
+        const antigo = cardCache.get(t.id);
+        const no = antigo && antigo.sig === sig ? antigo.no : montarCard(t);
+        novoCache.set(t.id, { sig, no });
+        frag.append(no);
+      });
       $(`#list-${status}`).replaceChildren(frag);
       $(`#empty-${status}`).hidden = itens.length > 0;
       $(`#count-${status}`).textContent = itens.length;
     }
+    cardCache = novoCache;
     $('#toolbar-concluido').hidden = !tarefas.some((t) => t.status === 'concluido');
     atualizarCabecalho();
 
@@ -366,6 +396,14 @@
         pendentes++;
       }
     }
+    const treino = lerTreino();
+    if (treino) { if (treino.feito) feitas++; else if (treino.pendente) pendentes++; }
+    const nav = $('#nav-treinos');
+    if (nav) {
+      nav.textContent = treino ? treino.texto : 'Treinos';
+      nav.classList.toggle('feito', !!(treino && treino.feito));
+    }
+
     const total = feitas + pendentes;
     const pct = total ? feitas / total : 0;
 
@@ -454,10 +492,21 @@
         salvar();
         return;
       }
-      case 'sub-del':
-        t.subtarefas = t.subtarefas.filter((x) => x.id !== btn.dataset.sid);
+      case 'sub-del': {
+        const i = t.subtarefas.findIndex((x) => x.id === btn.dataset.sid);
+        if (i < 0) return;
+        const [removida] = t.subtarefas.splice(i, 1);
         renumerar(t);
+        const tid = t.id;
+        avisar('Subtarefa removida.', 'Desfazer', () => {
+          const tt = achar(tid);
+          if (!tt) return;
+          tt.subtarefas.splice(Math.min(i, tt.subtarefas.length), 0, removida);
+          renumerar(tt);
+          salvar(); renderizar();
+        }, 8000);
         break;
+      }
       case 'move':
         t.status = btn.dataset.to === 'foco' ? 'foco' : 'entrada';
         t.statusAnterior = t.status;
@@ -465,11 +514,15 @@
       case 'edit':
         abrirFolha(t);
         return;
-      case 'delete':
-        if (!window.confirm('Excluir esta tarefa?')) return;
+      case 'delete': {
+        const removida = t;
         tarefas = tarefas.filter((x) => x.id !== t.id);
         expandidos.delete(t.id);
+        avisar('Tarefa excluída.', 'Desfazer', () => {
+          if (!achar(removida.id)) { tarefas.push(removida); salvar(); renderizar(); }
+        }, 8000);
         break;
+      }
       default:
         return;
     }
@@ -517,9 +570,14 @@
 
     document.querySelectorAll('#list-concluido .card').forEach((c) => c.classList.add('fade-out'));
     setTimeout(() => {
+      const removidas = tarefas.filter((t) => t.status === 'concluido');
       tarefas = tarefas.filter((t) => t.status !== 'concluido');
       salvar();
       renderizar();
+      avisar(`${plural(removidas.length, 'tarefa removida', 'tarefas removidas')}.`, 'Desfazer', () => {
+        removidas.forEach((r) => { if (!achar(r.id)) tarefas.push(r); });
+        salvar(); renderizar();
+      }, 8000);
     }, 320);
   });
 
@@ -588,8 +646,26 @@
 
   $('#fab').addEventListener('click', () => abrirFolha(null));
   $('#btn-cancelar').addEventListener('click', fecharFolha);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharFolha(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharFolha(); });
+  // Toque fora fecha a folha só se nada foi digitado (evita perder o texto sem querer)
+  overlay.addEventListener('click', (e) => {
+    if (e.target !== overlay) return;
+    if ($('#f-titulo').value.trim() || $('#f-subs').value.trim()) return;
+    fecharFolha();
+  });
+
+  // Teclado do iOS: mantém o campo focado visível e, ao fechar, volta a página ao topo
+  document.addEventListener('focusin', (e) => {
+    if (e.target.matches('input, textarea, select')) {
+      setTimeout(() => { if (e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300);
+    }
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (!a || !a.matches || !a.matches('input, textarea, select')) window.scrollTo(0, 0);
+    }, 150);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { fecharFolha(); fecharBackup(); } });
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -627,6 +703,93 @@
   });
 
   /* =====================================================
+     TREINO DO DIA (lê "treinos.v1" gravado pela página de treinos; nunca escreve nela)
+     Ciclo: A → B → C → folga → A
+     ===================================================== */
+  const TREINO_KEY = 'treinos.v1';
+  function lerTreino() {
+    try {
+      const bruto = localStorage.getItem(TREINO_KEY);
+      if (!bruto) return null;
+      const d = JSON.parse(bruto);
+      if (!d || typeof d !== 'object' || !d.plano) return null;
+      const DIAS = ['A', 'B', 'C'];
+      const hist = (Array.isArray(d.historico) ? d.historico : [])
+        .filter((h) => h && Number.isFinite(h.data) && DIAS.includes(h.dia))
+        .sort((a, b) => b.data - a.data);
+      const ult = hist[0];
+      if (d.sessao && DIAS.includes(d.sessao.dia)) {
+        return { texto: `Treino ${d.sessao.dia} em andamento`, feito: false, pendente: true };
+      }
+      const ini = (ms) => { const x = new Date(ms); x.setHours(0, 0, 0, 0); return x; };
+      const dd = ult ? Math.round((inicioDoDia() - ini(ult.data)) / MS_DIA) : null;
+      if (ult && dd === 0) return { texto: `Treino ${ult.dia} concluído hoje ✓`, feito: true, pendente: false };
+      let prox = 'A';
+      if (ult) {
+        const i = DIAS.indexOf(ult.dia);
+        if (i < 2) prox = DIAS[i + 1];
+        else if (dd <= 1) return { texto: 'Hoje é folga', feito: false, pendente: false };
+      }
+      const pl = d.plano[prox];
+      if (!pl || !Array.isArray(pl.exercicios) || !pl.exercicios.length) return null;
+      return { texto: `Hoje: Treino ${prox}`, feito: false, pendente: true };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* =====================================================
+     BACKUP (copiar/colar o JSON das tarefas)
+     ===================================================== */
+  const CHAVE_BACKUP = 'tarefas-ios.backup';
+  const ovBackup = $('#ov-backup');
+  function marcarBackup() { try { localStorage.setItem(CHAVE_BACKUP, String(Date.now())); } catch (e) { /* ignora */ } }
+
+  function abrirBackup() {
+    $('#bk-texto').value = JSON.stringify(tarefas);
+    ovBackup.classList.add('open');
+    ovBackup.setAttribute('aria-hidden', 'false');
+  }
+  function fecharBackup() { ovBackup.classList.remove('open'); ovBackup.setAttribute('aria-hidden', 'true'); }
+
+  $('#btn-backup').addEventListener('click', abrirBackup);
+  $('#bk-fechar').addEventListener('click', fecharBackup);
+  ovBackup.addEventListener('click', (e) => { if (e.target === ovBackup) fecharBackup(); });
+
+  $('#bk-copiar').addEventListener('click', async () => {
+    const t = $('#bk-texto');
+    try { await navigator.clipboard.writeText(t.value); marcarBackup(); avisar('Copiado. Guarde em um lugar seguro.'); } catch (e) {
+      t.focus(); t.select();
+      try { document.execCommand('copy'); marcarBackup(); avisar('Copiado. Guarde em um lugar seguro.'); } catch (_) { avisar('Selecione o texto e copie manualmente.'); }
+    }
+  });
+
+  $('#bk-importar').addEventListener('click', () => {
+    let obj;
+    try { obj = JSON.parse($('#bk-texto').value); } catch (e) { avisar('Texto inválido. Cole o backup completo.'); return; }
+    const lista = Array.isArray(obj) ? obj : (obj && Array.isArray(obj.tarefas) ? obj.tarefas : null);
+    if (!lista) { avisar('Esse texto não parece um backup de tarefas.'); return; }
+    const novas = normalizar(lista);
+    if (!window.confirm(`Substituir as ${plural(tarefas.length, 'tarefa atual', 'tarefas atuais')} por ${plural(novas.length, 'tarefa', 'tarefas')} do backup?`)) return;
+    tarefas = novas;
+    expandidos.clear();
+    salvar();
+    renderizar();
+    fecharBackup();
+    marcarBackup();
+    avisar('Backup importado.');
+  });
+
+  function lembrarBackup() {          // lembra a cada 30 dias (o Safari pode apagar dados do site)
+    if (!tarefas.length) return;
+    try {
+      const ult = Number(localStorage.getItem(CHAVE_BACKUP)) || 0;
+      if (!ult) { marcarBackup(); return; }
+      if (Date.now() - ult > 30 * MS_DIA) avisar('Faz tempo que você não faz backup. Toque em Backup no topo.', null, null, 7000);
+    } catch (e) { /* ignora */ }
+  }
+
+  /* =====================================================
      INICIALIZAÇÃO
      ===================================================== */
   // Virada de dia: só redesenha se o dia mudou (evita apagar o que o usuário está digitando)
@@ -638,19 +801,21 @@
 
   // Ao voltar para o app (iOS congela abas em segundo plano): reconcilia dados e dia
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { sincronizar(); verificarDia(); }
+    if (!document.hidden) { sincronizar(); verificarDia(); atualizarCabecalho(); }
   });
-  window.addEventListener('pageshow', () => { sincronizar(); verificarDia(); });
+  window.addEventListener('pageshow', () => { sincronizar(); verificarDia(); atualizarCabecalho(); });
 
   // Outra aba/janela do mesmo site alterou os dados
   window.addEventListener('storage', (e) => {
     if (e.key === STORAGE_KEY || e.key === null) sincronizar();
+    if (e.key === TREINO_KEY || e.key === null) atualizarCabecalho();     // treino do dia mudou na outra página
   });
 
   tarefas = carregar();   // lê (e migra, se preciso) os dados salvos; vazio no primeiro uso
   salvar();               // grava no formato atual
   renderizar();
   irParaAba(0);
+  lembrarBackup();
 
   // Pede ao Safari para não apagar os dados por inatividade (quando suportado)
   if (navigator.storage && navigator.storage.persist) {

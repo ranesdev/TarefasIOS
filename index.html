@@ -38,6 +38,10 @@
         <p class="eyebrow" id="data-hoje">&nbsp;</p>
         <h1>Minhas Tarefas</h1>
         <p class="resumo" id="resumo">&nbsp;</p>
+        <div class="nav-links">
+          <a class="nav-link" id="nav-treinos" href="./treinos.html">Treinos</a>
+          <button class="nav-link" id="btn-backup" type="button">Backup</button>
+        </div>
       </div>
 
       <div class="ring" id="ring" role="img" aria-label="Progresso do dia">
@@ -125,6 +129,23 @@
           <textarea id="f-subs" rows="4" placeholder="Passo 1&#10;Passo 2"></textarea>
         </label>
       </form>
+    </div>
+
+    <!-- ===== Backup ===== -->
+    <div class="overlay" id="ov-backup" aria-hidden="true">
+      <div class="sheet">
+        <div class="sheet-bar">
+          <button type="button" class="link" id="bk-fechar">Fechar</button>
+          <h2>Backup</h2>
+          <span class="link"></span>
+        </div>
+        <p class="dica">Copie este texto e guarde em um lugar seguro (Notas, e-mail). Para restaurar, cole o texto aqui e toque em Importar.</p>
+        <textarea id="bk-texto" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        <div class="actions">
+          <button type="button" class="act" id="bk-copiar">Copiar</button>
+          <button type="button" class="act danger" id="bk-importar">Importar</button>
+        </div>
+      </div>
     </div>
 
     <!-- Aviso rápido (ex.: falha ao salvar) -->

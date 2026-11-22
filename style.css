@@ -278,6 +278,9 @@ input, select, textarea {
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
+/* listas longas: o navegador só calcula o layout do que está na tela */
+.card { content-visibility: auto; contain-intrinsic-size: auto 96px; }
+
 .card.fade-out {
   opacity: 0;
   transform: scale(0.94);
@@ -573,3 +576,29 @@ input, select, textarea {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
+
+/* ---------- Link de navegação entre páginas ---------- */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blue);
+  text-decoration: none;
+}
+.nav-link:active { opacity: 0.5; }
+
+/* ---------- Links do cabeçalho ---------- */
+.nav-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.nav-link.feito { color: var(--green); }
+
+/* ---------- Textos e botões compartilhados ---------- */
+.dica { margin: 0 4px 10px; font-size: 13px; color: var(--text-2); line-height: 1.4; }
+.act.strong { background: var(--blue); color: #fff; }
+#bk-texto { width: 100%; padding: 12px; border: 0; border-radius: 12px; background: var(--card); resize: none; font-size: 13px; line-height: 1.4; margin-bottom: 12px; }
+
+/* ---------- Aviso com ação (ex.: Desfazer) ---------- */
+.toast.show.acao { pointer-events: auto; }
+.toast.acao { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; padding-top: 2px; padding-bottom: 2px; }
+.toast-btn { flex: none; min-height: 44px; padding: 0 8px; font-size: 15px; font-weight: 700; color: var(--blue); }
