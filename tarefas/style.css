@@ -1,0 +1,605 @@
+/* =====================================================
+   TAREFAS iOS — estilo premium (Dark Mode nativo)
+   ===================================================== */
+
+/* ---------- Variáveis: Dark Mode é o padrão ---------- */
+:root {
+  --bg: #1c1c1e;
+  --card: #2c2c2e;
+  --text: #ffffff;
+  --text-2: #8e8e93;
+  --sep: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --seg-bg: #2c2c2e;
+  --seg-pill: #636366;               /* pílula ativa flutuando sobre o fundo */
+  --field-bg: rgba(118, 118, 128, 0.24);
+  --sheet-bg: #1c1c1e;
+  --blue: #007aff;
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --gray: #8e8e93;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+/* ---------- Modo Claro (só se o aparelho estiver em claro) ---------- */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f2f2f7;
+    --card: #ffffff;
+    --text: #000000;
+    --sep: rgba(60, 60, 67, 0.14);
+    --card-border: rgba(0, 0, 0, 0.06);
+    --seg-bg: rgba(118, 118, 128, 0.12);
+    --seg-pill: #ffffff;
+    --field-bg: rgba(118, 118, 128, 0.12);
+    --sheet-bg: #f2f2f7;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* ---------- Reset / base ---------- */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+[hidden] { display: none !important; }
+
+html {
+  height: 100%;
+  overscroll-behavior-y: contain;       /* blinda o scroll elástico da página */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;                  /* sem delay de clique; só rolagem vertical */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* 16px nos campos evita o zoom automático do Safari ao focar */
+input, select, textarea {
+  font: inherit;
+  font-size: 16px;
+  color: var(--text);
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ---------- Container centralizado (máx. 430px) ---------- */
+.app {
+  position: relative;                   /* ancora o FAB e o modal dentro dos 430px */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 430px;
+  height: 100%;
+  height: 100dvh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top);
+}
+
+@media (min-width: 431px) {
+  .app { box-shadow: 0 0 0 0.5px var(--sep); }   /* contorno sutil no desktop */
+}
+
+/* ---------- Cabeçalho ---------- */
+.app-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 14px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);                 /* #8e8e93 */
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.app-header h1 {
+  margin: 3px 0 0;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.resumo {
+  margin: 5px 0 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+/* Anel de progresso */
+.ring {
+  position: relative;
+  flex: none;
+  width: 56px;
+  height: 56px;
+}
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 6; }
+.ring-track { stroke: var(--seg-bg); }
+.ring-bar {
+  stroke: var(--green);
+  stroke-linecap: round;
+  stroke-dasharray: 138.23;             /* 2 * PI * 22 */
+  stroke-dashoffset: 138.23;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ---------- Segmented Control ---------- */
+.segmented {
+  flex: none;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 16px 14px;
+  padding: 2px;                         /* margem interna sutil */
+  background: var(--seg-bg);
+  border-radius: 12px;
+}
+
+.seg-pill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / 3);
+  background: var(--seg-pill);
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.seg {
+  position: relative;
+  z-index: 1;
+  min-height: 44px;                     /* hit target */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition: color 0.25s;
+}
+.seg.active { color: var(--text); }
+
+.count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(142, 142, 147, 0.22);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ---------- Slider ---------- */
+.viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.slider {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+  will-change: transform;
+}
+
+.panel {
+  width: 33.3333%;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 16px calc(110px + env(safe-area-inset-bottom));
+}
+
+.empty {
+  margin: 56px 0 0;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 2px;
+}
+
+/* "Limpar tudo": link azul nativo */
+.clear-link {
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--blue);                   /* #007aff */
+}
+.clear-link:active { opacity: 0.5; }
+
+/* ---------- Cards (widgets) ----------
+   Cada card recebe --c (cor da categoria, "R,G,B") via JavaScript */
+.card {
+  background: var(--card);
+  border-radius: 18px;
+  border: 0.5px solid var(--card-border);
+  box-shadow: var(--shadow);
+  margin-bottom: 10px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* listas longas: o navegador só calcula o layout do que está na tela */
+.card { content-visibility: auto; contain-intrinsic-size: auto 96px; }
+
+.card.fade-out {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 8px 14px 8px 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Círculo vazado nativo: borda herda a cor da categoria */
+.check {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+
+.check-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgb(var(--c, 142, 142, 147));
+  display: grid;
+  place-items: center;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
+}
+.check:active .check-circle { transform: scale(0.88); }
+
+.check-circle svg { opacity: 0; transform: scale(0.6); transition: opacity 0.2s, transform 0.25s; }
+
+.card.done > .card-main .check-circle,
+.sub.concluida .check-circle {
+  background: rgb(var(--c, 142, 142, 147));
+}
+.card.done > .card-main .check-circle svg,
+.sub.concluida .check-circle svg { opacity: 1; transform: scale(1); }
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 0 4px;
+}
+
+.card-title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  transition: opacity 0.35s ease;
+}
+
+/* Risca central animada (cresce da esquerda p/ a direita) + fade do texto */
+.card-title .t {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0% 1.5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 0.4s ease, color 0.35s ease;
+}
+.card.done .card-title { opacity: 0.55; }
+.card.done .card-title .t {
+  background-size: 100% 1.5px;
+  color: var(--text-2);
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag, .badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+.tag {
+  background: rgba(var(--c, 142, 142, 147), 0.18);
+  color: rgb(var(--c, 142, 142, 147));
+}
+
+/* Selos de prazo (classes injetadas pelo JS) */
+.badge.red    { background: rgba(255, 59, 48, 0.18);   color: var(--red); }
+.badge.orange { background: rgba(255, 149, 0, 0.18);   color: var(--orange); }
+.badge.gray   { background: rgba(142, 142, 147, 0.2);  color: var(--gray); }
+
+/* Indicador discreto: "▼ 1/3 subtarefas" */
+.sub-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.sub-indicator .arrow {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.3s ease;
+}
+.card.open .sub-indicator .arrow { transform: rotate(180deg); }
+
+/* ---------- Accordion (transição de max-height) ---------- */
+.card-extra {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.extra-pad {
+  margin: 0 14px;
+  padding: 4px 0 12px;
+  border-top: 0.5px solid var(--sep);
+}
+
+.sub {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  transition: opacity 0.3s ease;
+}
+.sub .check-circle { width: 20px; height: 20px; }
+
+.sub-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0% 1.5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 0.35s ease;
+}
+.sub.concluida { opacity: 0.5; }
+.sub.concluida .sub-text { background-size: 100% 1.5px; }
+
+.sub-del {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+}
+
+.sub-add {
+  display: flex;
+  margin: 2px 0 8px;
+}
+.sub-add input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--field-bg);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.act {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--field-bg);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue);
+}
+.act.danger { color: var(--red); }
+.act:active { opacity: 0.6; }
+
+/* ---------- Botão flutuante (dentro do container de 430px) ---------- */
+.fab {
+  position: absolute;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--blue);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 18px rgba(0, 122, 255, 0.4);
+  transition: transform 0.15s;
+  z-index: 5;
+}
+.fab:active { transform: scale(0.92); }
+
+/* ---------- Folha modal ---------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s;
+  overscroll-behavior: contain;
+}
+.overlay.open { opacity: 1; visibility: visible; }
+
+.sheet {
+  width: 100%;
+  max-height: 92%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--sheet-bg);
+  border-radius: 22px 22px 0 0;
+  border-top: 0.5px solid var(--sep);
+  padding: 6px 16px calc(20px + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.overlay.open .sheet { transform: translateY(0); }
+
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sheet-bar h2 { margin: 0; font-size: 17px; font-weight: 700; }
+
+.link {
+  min-width: 76px;
+  min-height: 44px;
+  font-size: 17px;
+  color: var(--blue);
+  text-align: left;
+}
+.link.strong { font-weight: 700; text-align: right; }
+
+.field { display: block; margin-bottom: 14px; min-width: 0; }
+.field > span {
+  display: block;
+  margin: 0 4px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--card);
+}
+.field textarea { resize: none; line-height: 1.4; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ---------- Aviso (toast) ---------- */
+.toast {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 20;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 0.5px solid var(--sep);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast.show { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
+/* ---------- Link de navegação entre páginas ---------- */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blue);
+  text-decoration: none;
+}
+.nav-link:active { opacity: 0.5; }
+
+/* ---------- Links do cabeçalho ---------- */
+.nav-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.nav-link.feito { color: var(--green); }
+
+/* ---------- Textos e botões compartilhados ---------- */
+.dica { margin: 0 4px 10px; font-size: 13px; color: var(--text-2); line-height: 1.4; }
+.act.strong { background: var(--blue); color: #fff; }
+#bk-texto { width: 100%; padding: 12px; border: 0; border-radius: 12px; background: var(--card); resize: none; font-size: 13px; line-height: 1.4; margin-bottom: 12px; }
+
+/* ---------- Aviso com ação (ex.: Desfazer) ---------- */
+.toast.show.acao { pointer-events: auto; }
+.toast.acao { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; padding-top: 2px; padding-bottom: 2px; }
+.toast-btn { flex: none; min-height: 44px; padding: 0 8px; font-size: 15px; font-weight: 700; color: var(--blue); }
+

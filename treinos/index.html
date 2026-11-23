@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <!-- Segurança: só carrega scripts/estilos do próprio site; bloqueia código inline, conexões externas e envio de formulários -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Treinos">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+
+  <title>Treinos</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="treinos.css">
+</head>
+<body>
+  <div class="app" id="app">
+
+    <header class="app-header">
+      <div class="header-text">
+        <p class="eyebrow" id="data-hoje">&nbsp;</p>
+        <h1>Treinos</h1>
+        <p class="resumo" id="resumo">&nbsp;</p>
+      </div>
+    </header>
+
+    <nav class="segmented" id="tabs" role="tablist" aria-label="Seções">
+      <span class="seg-pill" id="tab-indicator"></span>
+      <button class="seg active" role="tab" data-tab="0" aria-selected="true">Hoje</button>
+      <button class="seg" role="tab" data-tab="1" aria-selected="false">Plano</button>
+      <button class="seg" role="tab" data-tab="2" aria-selected="false">Histórico</button>
+    </nav>
+
+    <main class="viewport" id="viewport">
+      <div class="slider" id="slider">
+        <section class="panel" role="tabpanel"><div id="hoje-conteudo"></div></section>
+        <section class="panel" role="tabpanel"><div id="plano-lista"></div></section>
+        <section class="panel" role="tabpanel"><div id="hist-lista"></div></section>
+      </div>
+    </main>
+
+    <!-- ===== Tela: editar treino ===== -->
+    <section class="screen" id="tela-editor" aria-hidden="true" aria-label="Editar treino">
+      <div class="screen-top">
+        <button type="button" class="link" id="ed-voltar">Voltar</button>
+        <h2 id="ed-titulo">Treino A</h2>
+        <span class="link"></span>
+      </div>
+      <div class="screen-body">
+        <label class="field">
+          <span>Nome do treino</span>
+          <input type="text" id="ed-nome" maxlength="40" placeholder="Ex.: Peito e tríceps" autocomplete="off" enterkeyhint="done">
+        </label>
+
+        <div id="ed-lista"></div>
+
+        <form class="ex-form" id="ed-form" novalidate>
+          <p class="form-titulo" id="ed-form-titulo">Novo exercício</p>
+          <label class="field">
+            <span>Exercício</span>
+            <input type="text" id="ex-nome" maxlength="80" placeholder="Ex.: Supino reto" autocomplete="off" enterkeyhint="next">
+          </label>
+          <div class="field-row3">
+            <label class="field"><span>Séries</span><input type="text" id="ex-series" inputmode="numeric" maxlength="2" value="3" autocomplete="off"></label>
+            <label class="field"><span>Repetições</span><input type="text" id="ex-reps" maxlength="12" value="10" autocomplete="off"></label>
+            <label class="field"><span>Descanso (s)</span><input type="text" id="ex-desc" inputmode="numeric" maxlength="3" value="60" autocomplete="off"></label>
+          </div>
+          <label class="field">
+            <span>Observação (opcional)</span>
+            <input type="text" id="ex-obs" maxlength="200" placeholder="Ex.: cadência 3-1-1" autocomplete="off" enterkeyhint="done">
+          </label>
+          <div class="actions">
+            <button type="button" class="act" id="ex-cancelar" hidden>Cancelar</button>
+            <button type="submit" class="act strong" id="ex-salvar">Adicionar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===== Tela: treino em andamento ===== -->
+    <section class="screen" id="tela-sessao" aria-hidden="true" aria-label="Treino em andamento">
+      <div class="screen-top">
+        <button type="button" class="link" id="ss-sair">Sair</button>
+        <p class="screen-sub" id="ss-info"></p>
+        <button type="button" class="link strong" id="ss-fim">Finalizar</button>
+      </div>
+      <div class="progress"><div class="progress-bar" id="ss-barra"></div></div>
+      <div class="screen-body" id="ss-corpo"></div>
+      <div class="rest" id="ss-rest" hidden>
+        <div class="rest-info">
+          <p class="rest-rotulo" id="ss-rotulo">Descanso</p>
+          <p class="rest-tempo" id="ss-tempo">00:00</p>
+        </div>
+        <button type="button" class="act" id="ss-mais">+30 s</button>
+        <button type="button" class="act" id="ss-pular">Pular</button>
+      </div>
+      <div class="screen-foot">
+        <button type="button" class="btn-sec" id="ss-ant">Anterior</button>
+        <button type="button" class="btn-primary" id="ss-prox">Próximo</button>
+      </div>
+    </section>
+
+    <!-- ===== Backup ===== -->
+    <div class="overlay" id="ov-backup" aria-hidden="true">
+      <div class="sheet">
+        <div class="sheet-bar">
+          <button type="button" class="link" id="bk-fechar">Fechar</button>
+          <h2>Backup</h2>
+          <span class="link"></span>
+        </div>
+        <p class="dica">Copie este texto e guarde em um lugar seguro (Notas, e-mail). Para restaurar, cole o texto aqui e toque em Importar.</p>
+        <textarea id="bk-texto" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        <div class="actions">
+          <button type="button" class="act" id="bk-copiar">Copiar</button>
+          <button type="button" class="act danger" id="bk-importar">Importar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="treinos.js"></script>
+</body>
+</html>

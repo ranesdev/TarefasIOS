@@ -1,0 +1,15 @@
+{
+  "name": "Treinos",
+  "short_name": "Treinos",
+  "description": "Treino ABC com descanso, séries, cargas e histórico.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1c1c1e",
+  "theme_color": "#1c1c1e",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

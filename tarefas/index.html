@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <!-- Segurança: só carrega scripts/estilos do próprio site; bloqueia código inline, conexões externas e envio de formulários -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+
+  <!-- Viewport: bloqueia zoom acidental e usa a tela inteira (notch) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+  <!-- PWA / Safari iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tarefas">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <!-- O iOS exige PNG para o ícone da Tela de Início. Gere um 180x180 e descomente: -->
+  <link rel="apple-touch-icon" href="icon-180.png">
+
+  <title>Minhas Tarefas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Container centralizado, travado em 430px (largura de um iPhone Pro Max) -->
+  <div class="app" id="app">
+
+    <!-- ===== Cabeçalho: data em caixa alta + título + anel de progresso ===== -->
+    <header class="app-header">
+      <div class="header-text">
+        <p class="eyebrow" id="data-hoje">&nbsp;</p>
+        <h1>Minhas Tarefas</h1>
+        <p class="resumo" id="resumo">&nbsp;</p>
+        <div class="nav-links">
+          <button class="nav-link" id="btn-backup" type="button">Backup</button>
+        </div>
+      </div>
+
+      <div class="ring" id="ring" role="img" aria-label="Progresso do dia">
+        <svg viewBox="0 0 52 52" aria-hidden="true">
+          <circle class="ring-track" cx="26" cy="26" r="22"></circle>
+          <circle class="ring-bar" id="ring-bar" cx="26" cy="26" r="22"></circle>
+        </svg>
+        <span class="ring-label" id="ring-label">–</span>
+      </div>
+    </header>
+
+    <!-- ===== Segmented Control (estilo iOS) ===== -->
+    <nav class="segmented" id="tabs" role="tablist" aria-label="Colunas">
+      <span class="seg-pill" id="tab-indicator"></span>
+      <button class="seg active" role="tab" data-tab="0" aria-selected="true">Entrada <span class="count" id="count-entrada">0</span></button>
+      <button class="seg" role="tab" data-tab="1" aria-selected="false">Foco <span class="count" id="count-foco">0</span></button>
+      <button class="seg" role="tab" data-tab="2" aria-selected="false">Concluído <span class="count" id="count-concluido">0</span></button>
+    </nav>
+
+    <!-- ===== Área deslizante: 3 painéis ===== -->
+    <main class="viewport" id="viewport">
+      <div class="slider" id="slider">
+
+        <section class="panel" role="tabpanel">
+          <div class="list" id="list-entrada"></div>
+          <p class="empty" id="empty-entrada">Nada na entrada.<br>Toque em + para adicionar.</p>
+        </section>
+
+        <section class="panel" role="tabpanel">
+          <div class="list" id="list-foco"></div>
+          <p class="empty" id="empty-foco">Sem tarefas em foco.<br>Mova algo da Entrada para cá.</p>
+        </section>
+
+        <section class="panel" role="tabpanel">
+          <div class="toolbar" id="toolbar-concluido">
+            <button class="clear-link" id="btn-limpar" type="button">Limpar tudo</button>
+          </div>
+          <div class="list" id="list-concluido"></div>
+          <p class="empty" id="empty-concluido">Nenhuma tarefa concluída ainda.</p>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- Botão flutuante -->
+    <button class="fab" id="fab" type="button" aria-label="Nova tarefa">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </button>
+
+    <!-- ===== Folha modal (criar / editar) ===== -->
+    <div class="overlay" id="overlay" aria-hidden="true">
+      <form class="sheet" id="form-tarefa" novalidate>
+        <div class="sheet-bar">
+          <button type="button" class="link" id="btn-cancelar">Cancelar</button>
+          <h2 id="sheet-titulo">Nova tarefa</h2>
+          <button type="submit" class="link strong">Salvar</button>
+        </div>
+
+        <label class="field">
+          <span>Título</span>
+          <input type="text" id="f-titulo" maxlength="120" placeholder="O que precisa ser feito?" autocomplete="off" enterkeyhint="done">
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Categoria</span>
+            <select id="f-categoria"></select>
+          </label>
+          <label class="field">
+            <span>Coluna</span>
+            <select id="f-status">
+              <option value="entrada">Entrada</option>
+              <option value="foco">Foco</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Prazo</span>
+          <input type="date" id="f-prazo">
+        </label>
+
+        <label class="field">
+          <span>Subtarefas (uma por linha)</span>
+          <textarea id="f-subs" rows="4" placeholder="Passo 1&#10;Passo 2"></textarea>
+        </label>
+      </form>
+    </div>
+
+    <!-- ===== Backup ===== -->
+    <div class="overlay" id="ov-backup" aria-hidden="true">
+      <div class="sheet">
+        <div class="sheet-bar">
+          <button type="button" class="link" id="bk-fechar">Fechar</button>
+          <h2>Backup</h2>
+          <span class="link"></span>
+        </div>
+        <p class="dica">Copie este texto e guarde em um lugar seguro (Notas, e-mail). Para restaurar, cole o texto aqui e toque em Importar.</p>
+        <textarea id="bk-texto" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        <div class="actions">
+          <button type="button" class="act" id="bk-copiar">Copiar</button>
+          <button type="button" class="act danger" id="bk-importar">Importar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aviso rápido (ex.: falha ao salvar) -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  </div><!-- /.app -->
+
+  <script src="script.js"></script>
+</body>
+</html>
